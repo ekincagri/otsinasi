@@ -12,7 +12,6 @@
 <link rel="apple-touch-icon" href="/icon-180.png"/>
 <link rel="manifest" href="/manifest.json"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#1a1200;}
@@ -170,30 +169,28 @@ function startQRScanner(){
 setState({scannerActive:true,scanResult:null});
 setTimeout(async()=>{
 try{
-const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:“environment”,width:{ideal:640},height:{ideal:480}}});
+const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:“environment”}});
 qrScannerStream=stream;
 const video=document.getElementById(“qr-video”);
-if(!video)return;
-video.srcObject=stream;
-await video.play();
-// jsQR ile tarama - iOS dahil her yerde çalışır
-const canvas=document.createElement(“canvas”);
-const ctx=canvas.getContext(“2d”);
-qrScanInterval=setInterval(()=>{
+if(video){video.srcObject=stream;}
+if(“BarcodeDetector” in window){
+const detector=new BarcodeDetector({formats:[“qr_code”]});
+qrScanInterval=setInterval(async()=>{
+try{
 const v=document.getElementById(“qr-video”);
 if(!v||v.readyState<2)return;
-canvas.width=v.videoWidth||320;
-canvas.height=v.videoHeight||240;
-ctx.drawImage(v,0,0,canvas.width,canvas.height);
-const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
-const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:“dontInvert”});
-if(code&&code.data){
+const barcodes=await detector.detect(v);
+if(barcodes.length>0){
 stopQRScanner();
-processQRScan(code.data);
+processQRScan(barcodes[0].rawValue);
 }
-},300);
+}catch(e){}
+},500);
+}else{
+setState({scannerActive:false,scanResult:“⚠️ Bu tarayıcı QR okuma desteklemiyor. Chrome Android kullanın.”,scanResultType:“warn”});
+}
 }catch(e){
-setState({scannerActive:false,scanResult:“❌ Kamera erişimi reddedildi. Lütfen kamera iznini verin.”,scanResultType:“fail”});
+setState({scannerActive:false,scanResult:“❌ Kamera erişimi reddedildi.”,scanResultType:“fail”});
 }
 },200);
 }
